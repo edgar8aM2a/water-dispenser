@@ -1,6 +1,8 @@
 import RPi.GPIO as GPIO #Solo disponible en rasberry
 import time
 from datetime import datetime
+from collections import Counter
+from RPLCD.i2c import CharLCD
 
 #Configuración de pines GPIO
 PIN_BTN_galon = 17
@@ -9,6 +11,7 @@ PIN_BTN_LIMPIAR = 22
 PIN_BTN_CANCELAR = 23
 PIN_MONEDAS = 24
 PIN_BOMBA = 18
+PIN_FLUJO = 5
 
 #Precios
 PRECIO_galon = 10
@@ -23,6 +26,19 @@ GPIO.setup([PIN_BTN_galon, PIN_BTN_GARRAFON, PIN_BTN_LIMPIAR, PIN_BTN_CANCELAR, 
 GPIO.setup(PIN_BOMBA, GPIO.OUT)
 GPIO.output(PIN_BOMBA, GPIO.LOW)
 
+#Configuración del LCD
+lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1,
+              cols=16, rows=2, charmap='A00', auto_linebreaks=True)
+             
+
+
+def mostrar_en_lcd(linea1, linea2=""):
+    lcd.clear()
+    lcd.write_string(linea1[:16])
+    if linea2:
+        lcd.cursor_pos = (1, 0)
+        lcd.write_string(linea2[:16])
+
 #Función para dispensar agua
 def dispensar(segundos):
     print(f"→ DISPENSANDO agua por {segundos} segundos")
@@ -35,6 +51,7 @@ def moneda_insertada(channel):
     global credito
     credito += 10  # suponiendo que cada pulso vale 10 unidades
     print(f"Credito: {credito}")
+    mostrar_en_lcd("Credito:", f"${credito}")
 
 #Log de ventas
 def registrar_venta(tipo):
