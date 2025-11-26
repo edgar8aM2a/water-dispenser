@@ -2,17 +2,28 @@
 // Esqueleto basado en tu coins_counter_test.py
 
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <LiquidCrystal_PCF8574.h>
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// Configuracion del display
+LiquidCrystal_PCF8574 lcd(0x27);
+const uint8_t LCD_WIDTH = 16; // Ancho del display 
 
-// --- Pines (ajusta según tu hardware) ---
+// --- Pines  ---
+// Contador de Monedas (INT)
+const int PIN_MONEDAS       = 2;  // interrupción
+// Sensor de flujo
+const int PIN_FLUJO         = 3;
+// Botones
 const int PIN_BTN_GALON     = 4;
 const int PIN_BTN_GARRAFON  = 5;
 const int PIN_BTN_LIMPIAR   = 6;
 const int PIN_BTN_CANCELAR  = 7;
-const int PIN_MONEDAS       = 2;  // interrupción
+// Relays_bank
 const int PIN_BOMBA         = 8;
+const int PIN_HOPPER        = 9;
+// Contador de cambio (hopper) – por ahora solo declarado
+const int PIN_IR_HOPPER     = 11;
+
 
 // --- Precios ---
 const int PRECIO_GALON    = 10;
@@ -23,15 +34,7 @@ volatile int credito = 0;
 
 // ISR: cada pulso = $10 (ajusta según tu monedero)
 void monedaInsertada() {
-  credito += 10;
-}
-
-void mostrarEnLcd(const char* linea1, const char* linea2) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(linea1);
-  lcd.setCursor(0, 1);
-  lcd.print(linea2);
+  credito += 1;
 }
 
 void dispensarSegundos(unsigned long segundos) {
@@ -50,6 +53,23 @@ void registrarVenta(const char* tipo) {
   Serial.println(tipo);
 }
 
+// Imprime un mensaje en una línea del LCD y rellena con espacios
+void lcdString(const char* message, uint8_t line) {
+  // line = 0 para primera fila, 1 para segunda
+  lcd.setCursor(0, line);
+
+  // Escribimos hasta 16 caracteres, rellenando con espacios si hace falta
+  uint8_t i = 0;
+  while (i < LCD_WIDTH && message[i] != '\0') {
+    lcd.print(message[i]);
+    i++;
+  }
+  while (i < LCD_WIDTH) {  // rellena con espacios, como .ljust()
+    lcd.print(' ');
+    i++;
+  }
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -63,14 +83,21 @@ void setup() {
   pinMode(PIN_BOMBA, OUTPUT);
   digitalWrite(PIN_BOMBA, HIGH);  // apagada
 
-  // Monedero
+  // Hopper (más adelante puedes usarlo)
+  pinMode(PIN_HOPPER, OUTPUT);
+  digitalWrite(PIN_HOPPER, HIGH); // apagado
+
+  // Monedero (interrupción)
   pinMode(PIN_MONEDAS, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_MONEDAS), monedaInsertada, FALLING);
 
   // LCD
-  lcd.init();
-  lcd.backlight();
-  mostrarEnLcd("Sistema listo", "Credito: $0");
+  lcd.begin(16, 2);        // Inicializa el LCD de 16x2
+  lcd.setBacklight(255);   // Enciende el backlight (255 = máximo brillo)
+
+  lcdString("Hola Edgar!", 0);        // línea 1
+  lcdString("Tu LCD funciona", 1);    // línea 2
+  delay(1500);
 }
 
 void loop() {
@@ -79,16 +106,18 @@ void loop() {
   int creditoLocal = credito;
   interrupts();
 
-  // Muestra crédito en LCD de vez en cuando
-  char buffer[16];
+  // Mostrar estado en LCD
+  char buffer[17];  // 16 + terminador
   snprintf(buffer, sizeof(buffer), "Credito: $%d", creditoLocal);
 
-  mostrarEnLcd("Listo...", buffer);
+  lcdString("Listo...", 0);
+  lcdString(buffer,   1);
   delay(200);
 
   // --- Botón Galón ---
   if (digitalRead(PIN_BTN_GALON) == LOW && creditoLocal >= PRECIO_GALON) {
-    mostrarEnLcd("Dispensando", "Galon...");
+    lcdString("Dispensando", 0);
+    lcdString("Galon...",    1);
     dispensarSegundos(5);  // ajusta según tu bomba
     registrarVenta("Galon");
 
@@ -99,8 +128,9 @@ void loop() {
 
   // --- Botón Garrafón ---
   else if (digitalRead(PIN_BTN_GARRAFON) == LOW && creditoLocal >= PRECIO_GARRAFON) {
-    mostrarEnLcd("Dispensando", "Garrafon...");
-    dispensarSegundos(100); // ejemplo
+    lcdString("Dispensando", 0);
+    lcdString("Garrafon...", 1);
+    dispensarSegundos(10); // ejemplo
     registrarVenta("Garrafon");
 
     noInterrupts();
@@ -110,7 +140,8 @@ void loop() {
 
   // --- Botón Limpiar ---
   else if (digitalRead(PIN_BTN_LIMPIAR) == LOW) {
-    mostrarEnLcd("Limpieza", "Garrafon...");
+    lcdString("Limpieza",   0);
+    lcdString("Garrafon...",1);
     dispensarSegundos(4);
   }
 
@@ -122,8 +153,10 @@ void loop() {
     noInterrupts();
     credito = 0;
     interrupts();
-    mostrarEnLcd("Cancelado", "Credito: $0");
+    lcdString("Cancelado",   0);
+    lcdString("Credito: $0", 1);
     delay(800);
   }
 }
+
 

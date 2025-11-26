@@ -1,8 +1,8 @@
 // buttons_test_arduino.ino
 // Prueba 3 botones con pull-up interno
 
-const int BUTTON_PINS[] = {4, 5, 6};  // Cambia según tu cableado
-const int NUM_BUTTONS = 3;
+const int BUTTON_PINS[] = {4, 5, 6,7};  // Cambia según tu cableado
+const int NUM_BUTTONS = 4;
 
 void setup() {
   Serial.begin(9600);
