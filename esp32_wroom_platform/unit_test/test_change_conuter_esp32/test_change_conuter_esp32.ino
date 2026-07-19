@@ -11,7 +11,7 @@ const unsigned long FILTRO_MS = 10;  // ajusta: 5–20 ms
 void setup() {
   Serial.begin(115200);
 
-  pinMode(PIN_MONEDA, INPUT);
+  pinMode(PIN_MONEDA, INPUT_PULLUP);
   pinMode(PIN_HOPPER, OUTPUT);
 
   // Estado seguro inicial
